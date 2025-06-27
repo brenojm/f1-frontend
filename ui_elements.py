@@ -6,7 +6,6 @@ from io import BytesIO
 from datetime import datetime
 import os
 
-# Paleta de Cores
 COLOR_BACKGROUND_DARK = "#1A1A1A"
 COLOR_BACKGROUND_MEDIUM = "#2B2B2B"
 COLOR_BACKGROUND_LIGHT = "#3A3A3A"
@@ -24,7 +23,6 @@ COLOR_BORDER_FOCUS = "#FF8C00"
 ICONS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons")
 
 def load_icon(icon_name, size=(24, 24)):
-    """Carrega um ícone da pasta 'icons'."""
     icon_path = os.path.join(ICONS_PATH, f"{icon_name}.png")
     if os.path.exists(icon_path):
         try:
@@ -78,8 +76,7 @@ class LabeledEntry(tk.Frame):
         self.entry.delete(0, tk.END)
         self.entry.insert(0, value)
         if self.entry.cget('state') == 'readonly':
-             self.entry.config(state=self.entry.cget('state'))
-
+            self.entry.config(state=self.entry.cget('state'))
 
 class LabeledSpinbox(tk.Frame):
     def __init__(self, parent, label_text, from_=0, to=100, **kwargs):
@@ -92,7 +89,7 @@ class LabeledSpinbox(tk.Frame):
         self.label.grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.spinbox_var = tk.IntVar()
         self.spinbox = ttk.Spinbox(self, from_=from_, to=to, textvariable=self.spinbox_var,
-                                 style="Monochromatic.TEntry")
+                                   style="Monochromatic.TEntry")
         self.spinbox.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
 
     def get(self):
@@ -103,10 +100,6 @@ class LabeledSpinbox(tk.Frame):
 
 class LabeledCombobox(tk.Frame):
     def __init__(self, parent, label_text, values_map, default_id=None, **kwargs):
-        """
-        values_map should be a dictionary like {id: name, ...} for ID-Name mapping.
-        If just a list of strings, pass it directly.
-        """
         super().__init__(parent, **kwargs)
         self.columnconfigure(0, weight=0)
         self.columnconfigure(1, weight=1)
@@ -145,6 +138,21 @@ class LabeledCombobox(tk.Frame):
     def set_by_name(self, name):
         self.combobox_var.set(str(name))
 
+    def update_options(self, new_options_dict):
+        self._id_to_name = new_options_dict
+        self._name_to_id = {str(v): k for k, v in new_options_dict.items()}
+        self._display_values = [str(v) for v in new_options_dict.values()]
+        
+        self.combobox['values'] = self._display_values
+        
+        current_value = self.combobox_var.get()
+        if current_value not in self._display_values:
+            self.combobox_var.set("") # Clear if current selection is not in new options
+        elif not current_value and self._display_values:
+            self.combobox_var.set(self._display_values[0]) # Set to first if empty and options exist
+        elif not self._display_values:
+            self.combobox_var.set("") # Clear if no options
+
 class LabeledCheckbutton(tk.Frame):
     def __init__(self, parent, label_text, **kwargs):
         super().__init__(parent, **kwargs)
@@ -152,7 +160,7 @@ class LabeledCheckbutton(tk.Frame):
 
         self.var = tk.BooleanVar()
         self.checkbutton = ttk.Checkbutton(self, text=label_text, variable=self.var,
-                                          style="Monochromatic.TCheckbutton")
+                                           style="Monochromatic.TCheckbutton")
         self.checkbutton.pack(padx=5, pady=5, anchor="w")
 
     def get(self):
@@ -179,7 +187,6 @@ class ImagePreview(tk.Frame):
         else:
             self.image_label.config(text="Sem Imagem", fg=COLOR_FOREGROUND_DARK)
         self.image = None
-
 
     def load_image_from_url(self, url):
         self.image_label.config(image='')
@@ -213,7 +220,6 @@ class ImagePreview(tk.Frame):
             else:
                 self.image_label.config(text="Erro processamento", fg=COLOR_DANGER_ACCENT)
             print(f"ERRO: Falha ao processar imagem: {e}. URL: {url}")
-
 
 def show_info(title, message):
     messagebox.showinfo(title, message)
@@ -250,17 +256,14 @@ class BaseEntityCard(tk.Frame):
     def __init__(self, parent, item_data, controller, 
                  item_id_key="id", image_url_key=None, title_key=None, detail_lines_info=None,
                  edit_view_name=None, delete_api_call=None, refresh_list_view_callback=None, 
-                 # Parâmetros específicos para BaseEntityCard
-                 bg_color=COLOR_BACKGROUND_MEDIUM, fg_color=COLOR_FOREGROUND_LIGHT, **kwargs_for_tk_frame): # Captura apenas kwargs para tk.Frame
+                 bg_color=COLOR_BACKGROUND_MEDIUM, fg_color=COLOR_FOREGROUND_LIGHT, **kwargs_for_tk_frame):
         
-        # Passa apenas os kwargs que tk.Frame reconhece para o construtor pai
         super().__init__(parent, bg=bg_color, relief="flat", bd=0, highlightthickness=0, **kwargs_for_tk_frame)
 
         self.controller = controller
         self.item_data = item_data
         self.item_id = item_data.get(item_id_key)
 
-        # Armazenar os argumentos como atributos da instância
         self.item_id_key = item_id_key
         self.image_url_key = image_url_key
         self.title_key = title_key
@@ -315,6 +318,6 @@ class BaseEntityCard(tk.Frame):
                 if response is True:
                     show_info("Sucesso", "Item excluído com sucesso!")
                     if self.refresh_list_view_callback:
-                        self.refresh_list_view_callback() # Chama a função de callback fornecida
+                        self.refresh_list_view_callback()
                 else:
                     show_error("Erro", response.get("error", "Falha ao excluir item. (Verifique o console para detalhes)"))

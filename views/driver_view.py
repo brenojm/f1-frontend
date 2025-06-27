@@ -120,8 +120,8 @@ class DriverListView(tk.Frame):
             cards_in_current_row = 0
             max_cols = 4 
 
-            card_width = 280 
-            card_height = 220 
+            card_width = 340 
+            card_height = 240 
             padding_x = 15 
             padding_y = 15 
             

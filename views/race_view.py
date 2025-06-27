@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import threading # Importar o módulo threading
+import threading
 
 from api_client import ApiClient
 from ui_elements import LabeledEntry, LabeledCombobox, LabeledSpinbox, show_info, show_error, show_warning, ask_yes_no, \
@@ -17,10 +17,6 @@ class RaceListView(tk.Frame):
         self.seasons_map = {}
         self.circuits_map = {}
         
-        # REMOVIDO: Carregamento de dados de relação e contratos do __init__
-        # self._load_relations_data()
-        # self.load_races()
-
         self.create_widgets()
 
     def create_widgets(self):
@@ -30,17 +26,14 @@ class RaceListView(tk.Frame):
         button_frame = tk.Frame(self, bg=COLOR_BACKGROUND_DARK)
         button_frame.pack(pady=10)
         ttk.Button(button_frame, text="Adicionar Nova Corrida", command=self.add_race, style="Primary.TButton").pack(side=tk.LEFT, padx=10)
-        # O botão "Atualizar Lista" agora chamará o método que inicia o carregamento assíncrono
         ttk.Button(button_frame, text="Atualizar Lista", command=self.load_races, style="Monochromatic.TButton").pack(side=tk.LEFT, padx=10)
 
-        # Container para o indicador de carregamento e o Treeview
         self.content_container = tk.Frame(self, bg=COLOR_BACKGROUND_DARK)
         self.content_container.pack(pady=10, padx=20, fill=tk.BOTH, expand=True)
 
-        # Indicador de Carregamento
         self.loading_label = ttk.Label(self.content_container, text="Carregando corridas...", 
-                                       background=COLOR_BACKGROUND_DARK, foreground=COLOR_FOREGROUND_LIGHT,
-                                       font=("Arial", 12, "bold"))
+                                        background=COLOR_BACKGROUND_DARK, foreground=COLOR_FOREGROUND_LIGHT,
+                                        font=("Arial", 12, "bold"))
         
         style = ttk.Style()
         style.configure("Treeview.Heading", font=("Arial", 10, "bold"), background=COLOR_BACKGROUND_LIGHT, foreground=COLOR_FOREGROUND_LIGHT)
@@ -64,7 +57,6 @@ class RaceListView(tk.Frame):
         self.tree.column("Voltas", width=60, anchor=tk.CENTER)
         self.tree.column("Clima", width=80, anchor=tk.CENTER)
 
-        # self.tree será empacotado/desempacotado dinamicamente
         self.tree.bind("<Double-1>", self.on_double_click)
 
         action_frame = tk.Frame(self, bg=COLOR_BACKGROUND_DARK)
@@ -75,42 +67,30 @@ class RaceListView(tk.Frame):
         ttk.Button(self, text="Voltar à Tela Inicial", command=lambda: self.controller.show_frame("WelcomeView"), 
                    style="Monochromatic.TButton").pack(pady=20)
 
-    # NOVO: Método chamado pelo Controller quando esta tela é exibida
     def on_show(self, **kwargs):
-        """Carrega os dados de relações e corridas quando a RaceListView é exibida."""
         self.load_races()
 
-    # ATUALIZADO: Este método agora coordena o carregamento assíncrono
     def load_races(self):
-        # 1. Esconde o treeview e mostra o indicador de carregamento
         self.tree.pack_forget()
         self.loading_label.pack(pady=10)
         
-        # 2. Inicia o carregamento das relações e corridas em threads separadas
         self.relations_loaded_event = threading.Event()
         
         threading.Thread(target=self._fetch_all_data_async, daemon=True).start()
 
     def _fetch_all_data_async(self):
-        """Busca todas as dependências (temporadas, circuitos) e corridas em threads separadas."""
-        # Busca relações
         seasons_resp = self.api_client.get_seasons()
         circuits_resp = self.api_client.get_circuits()
 
-        # Atualiza os mapas na thread principal e sinaliza que as relações estão carregadas
         self.after(0, lambda: self._update_relations_maps_and_signal(seasons_resp, circuits_resp))
         
-        # Aguarda que as relações sejam processadas na thread principal antes de buscar corridas
         self.relations_loaded_event.wait() 
 
-        # Busca corridas
         races_resp = self.api_client.get_races()
         
-        # Atualiza o Treeview na thread principal
         self.after(0, lambda: self._handle_races_response(races_resp))
 
     def _update_relations_maps_and_signal(self, seasons_resp, circuits_resp):
-        """Atualiza os mapas de relações e sinaliza que terminaram."""
         if isinstance(seasons_resp, dict) and "error" in seasons_resp:
             show_error("Erro", seasons_resp.get("error", "Falha ao carregar temporadas para exibição."))
         elif seasons_resp is not None:
@@ -125,14 +105,11 @@ class RaceListView(tk.Frame):
         else:
             show_error("Erro", "Resposta inesperada para circuitos.")
         
-        self.relations_loaded_event.set() # Sinaliza que as relações foram carregadas e mapas atualizados
+        self.relations_loaded_event.set()
 
     def _handle_races_response(self, response):
-        """Método para processar a resposta da API de corridas e atualizar a UI na thread principal."""
-        # 4. Esconde o indicador de carregamento
         self.loading_label.pack_forget()
 
-        # 5. Limpa o treeview antes de popular com novos dados
         for item in self.tree.get_children():
             self.tree.delete(item)
 
@@ -154,7 +131,6 @@ class RaceListView(tk.Frame):
                     race.get("laps"),
                     race.get("weather")
                 ))
-            # 6. Empacota o treeview de volta após carregar os dados
             self.tree.pack(fill=tk.BOTH, expand=True)
         else:
             show_error("Erro", "Resposta inesperada da API.")
@@ -182,7 +158,7 @@ class RaceListView(tk.Frame):
             response = self.api_client.delete_race(race_id)
             if response is True:
                 show_info("Sucesso", "Corrida excluída com sucesso!")
-                self.load_races() # Recarrega a lista após exclusão
+                self.load_races()
             else:
                 show_error("Erro", response.get("error", "Falha ao excluir corrida."))
 
@@ -196,25 +172,20 @@ class AddRaceView(tk.Frame):
         self.api_client = ApiClient()
         self.seasons_data = {}
         self.circuits_data = {}
-        # REMOVIDO: Carregamento de dados de relação do __init__
-        # self._load_relations_data()
         self.create_widgets()
 
-    # ATUALIZADO: Método assíncrono para carregar dados de relações e popular comboboxes
     def _fetch_and_populate_relations_async(self):
-        """Busca e popula os dados das comboboxes em uma thread separada."""
         seasons_resp = self.api_client.get_seasons()
         circuits_resp = self.api_client.get_circuits()
 
         self.after(0, lambda: self._populate_comboboxes(seasons_resp, circuits_resp))
 
     def _populate_comboboxes(self, seasons_resp, circuits_resp):
-        """Popula as comboboxes na thread principal."""
         if isinstance(seasons_resp, dict) and "error" in seasons_resp:
             show_error("Erro", seasons_resp.get("error", "Falha ao carregar temporadas para seleção."))
         elif seasons_resp is not None:
             self.seasons_data = {s["id"]: s["year"] for s in seasons_resp}
-            self.season_combobox.set_options(self.seasons_data)
+            self.season_combobox.update_options(self.seasons_data) # Use update_options
         else:
             show_error("Erro", "Resposta inesperada para temporadas.")
 
@@ -222,7 +193,7 @@ class AddRaceView(tk.Frame):
             show_error("Erro", circuits_resp.get("error", "Falha ao carregar circuitos para seleção."))
         elif circuits_resp is not None:
             self.circuits_data = {c["id"]: c["name"] for c in circuits_resp}
-            self.circuit_combobox.set_options(self.circuits_data)
+            self.circuit_combobox.update_options(self.circuits_data) # Use update_options
         else:
             show_error("Erro", "Resposta inesperada para circuitos.")
 
@@ -239,7 +210,6 @@ class AddRaceView(tk.Frame):
         self.race_date_entry = LabeledEntry(form_frame, "Data da Corrida (DD/MM/AAAA):")
         self.race_date_entry.grid(row=1, column=0, columnspan=2, sticky="ew", pady=5)
 
-        # As comboboxes são criadas vazias no __init__
         self.season_combobox = LabeledCombobox(form_frame, "Temporada:", {})
         self.season_combobox.grid(row=2, column=0, columnspan=2, sticky="ew", pady=5)
 
@@ -256,17 +226,14 @@ class AddRaceView(tk.Frame):
         ttk.Button(button_frame, text="Salvar", command=self.save_race, style="Primary.TButton").pack(side=tk.LEFT, padx=10)
         ttk.Button(button_frame, text="Cancelar", command=lambda: self.controller.show_frame("RaceListView"), style="Monochromatic.TButton").pack(side=tk.LEFT, padx=10)
 
-    # NOVO: Método on_show para carregar relações e limpar campos
     def on_show(self, **kwargs):
-        """Carrega dados para as comboboxes e limpa os campos ao exibir."""
         self.name_entry.set("")
         self.race_date_entry.set("")
-        self.season_combobox.set("")
-        self.circuit_combobox.set("")
+        self.season_combobox.set_by_name("") # Corrected: use set_by_name
+        self.circuit_combobox.set_by_name("") # Corrected: use set_by_name
         self.laps_entry.set("")
-        self.weather_combobox.set_by_name("") # Limpa para o valor padrão
+        self.weather_combobox.set_by_name("")
         
-        # Inicia o carregamento assíncrono das relações
         threading.Thread(target=self._fetch_and_populate_relations_async, daemon=True).start()
 
     def save_race(self):
@@ -295,8 +262,7 @@ class AddRaceView(tk.Frame):
             show_warning("Erro de Entrada", "A Data da Corrida é obrigatória.")
             return
 
-        # Validação da data
-        if self.race_date_entry.get() and race_date_api_format is None: # Se a entrada não for vazia e a formatação falhar
+        if self.race_date_entry.get() and race_date_api_format is None:
             show_warning("Erro de Entrada", "A Data da Corrida deve estar no formato DD/MM/AAAA.")
             return
 
@@ -327,27 +293,20 @@ class EditRaceView(tk.Frame):
         self._original_circuit_id = None
         self.seasons_data = {}
         self.circuits_data = {}
-        # REMOVIDO: Carregamento de dados de relação do __init__
-        # self._load_relations_data()
         self.create_widgets()
 
-    # ATUALIZADO: Método assíncrono para carregar dados de relações
     def _fetch_relations_data_for_display_async(self, race_id):
-        """Busca dados de temporadas e circuitos em uma thread separada para display."""
         seasons_resp = self.api_client.get_seasons()
         circuits_resp = self.api_client.get_circuits()
 
-        # Usar self.after para atualizar os maps na thread principal e carregar a corrida
         self.after(0, lambda: self._update_relations_maps_and_load_race(seasons_resp, circuits_resp, race_id))
 
     def _update_relations_maps_and_load_race(self, seasons_resp, circuits_resp, race_id):
-        """Atualiza os mapas de relações e então carrega os dados da corrida na thread principal."""
         if isinstance(seasons_resp, dict) and "error" in seasons_resp:
             show_error("Erro", seasons_resp.get("error", "Falha ao carregar temporadas para exibição."))
         elif seasons_resp is not None:
             self.seasons_data = {s["id"]: s["year"] for s in seasons_resp}
-            # Atualiza as opções do combobox para a edição
-            self.season_combobox.set_options(self.seasons_data)
+            self.season_combobox.update_options(self.seasons_data) # Use update_options
         else:
             show_error("Erro", "Resposta inesperada para temporadas.")
 
@@ -355,12 +314,10 @@ class EditRaceView(tk.Frame):
             show_error("Erro", circuits_resp.get("error", "Falha ao carregar circuitos para exibição."))
         elif circuits_resp is not None:
             self.circuits_data = {c["id"]: c["name"] for c in circuits_resp}
-            # Atualiza as opções do combobox para a edição
-            self.circuit_combobox.set_options(self.circuits_data)
+            self.circuit_combobox.update_options(self.circuits_data) # Use update_options
         else:
             show_error("Erro", "Resposta inesperada para circuitos.")
         
-        # Agora que os mapas e comboboxes estão atualizados, carregue os dados da corrida
         self._load_race_data_sync(race_id)
 
     def create_widgets(self):
@@ -376,7 +333,6 @@ class EditRaceView(tk.Frame):
         self.race_date_entry = LabeledEntry(form_frame, "Data da Corrida (DD/MM/AAAA):")
         self.race_date_entry.grid(row=1, column=0, columnspan=2, sticky="ew", pady=5)
 
-        # As comboboxes são criadas vazias no __init__ e populadas em on_show
         self.season_combobox = LabeledCombobox(form_frame, "Temporada:", {})
         self.season_combobox.grid(row=2, column=0, columnspan=2, sticky="ew", pady=5)
 
@@ -393,18 +349,14 @@ class EditRaceView(tk.Frame):
         ttk.Button(button_frame, text="Salvar Alterações", command=self.save_changes, style="Primary.TButton").pack(side=tk.LEFT, padx=10)
         ttk.Button(button_frame, text="Cancelar", command=lambda: self.controller.show_frame("RaceListView"), style="Monochromatic.TButton").pack(side=tk.LEFT, padx=10)
 
-    # NOVO: Método on_show para carregar dados de edição
     def on_show(self, race_id=None, **kwargs):
-        """Carrega os dados de relações e da corrida para edição quando a EditRaceView é exibida."""
         if race_id:
             self.race_id = race_id
-            # Inicia o carregamento assíncrono das relações, que então chamará o carregamento da corrida
             threading.Thread(target=self._fetch_relations_data_for_display_async, args=(race_id,), daemon=True).start()
         else:
             show_error("Erro", "ID da corrida não fornecido para edição.")
-            self.controller.show_frame("RaceListView") # Volta para a lista se não houver ID
+            self.controller.show_frame("RaceListView")
 
-    # Renomeado para indicar que é chamado sincronicamente após _update_relations_maps_and_load_race
     def _load_race_data_sync(self, race_id):
         self.race_id = race_id
         response = self.api_client.get_race(race_id)
@@ -417,14 +369,13 @@ class EditRaceView(tk.Frame):
             race_date_display_format = format_date_display(response.get("race_date", ""))
             self.race_date_entry.set(race_date_display_format)
             
-            # Armazenar e definir os IDs originais nos Comboboxes
             self._original_season_id = response.get("season_id")
             self._original_circuit_id = response.get("circuit_id")
             
             self.season_combobox.set_by_id(self._original_season_id)
             self.circuit_combobox.set_by_id(self._original_circuit_id)
 
-            self.laps_entry.set(str(response.get("laps", "") or "")) # Converte para string
+            self.laps_entry.set(str(response.get("laps", "") or ""))
             self.weather_combobox.set_by_name(response.get("weather", "") or "")
         else:
             show_error("Erro", "Resposta inesperada ao carregar dados da corrida.")
@@ -432,7 +383,6 @@ class EditRaceView(tk.Frame):
     def save_changes(self):
         race_date_api_format = format_date_api(self.race_date_entry.get()) if self.race_date_entry.get() else None
 
-        # Obter os IDs de temporada e circuito dos Comboboxes (agora editáveis)
         season_id = self.season_combobox.get_id()
         circuit_id = self.circuit_combobox.get_id()
 
@@ -459,7 +409,6 @@ class EditRaceView(tk.Frame):
             show_warning("Erro de Entrada", "A Data da Corrida é obrigatória.")
             return
 
-        # Validação da data
         if self.race_date_entry.get() and race_date_api_format is None:
             show_warning("Erro de Entrada", "A Data da Corrida deve estar no formato DD/MM/AAAA.")
             return
