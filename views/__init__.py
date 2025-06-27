@@ -1,0 +1,1 @@
+# f1-frontend/views/__init__.py
